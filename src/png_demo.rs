@@ -1,5 +1,4 @@
 use nom;
-use nom::IResult;
 
 use std::fs::File;
 use std::io::BufReader;
@@ -10,20 +9,18 @@ pub fn demo() {
     let f : File = File::open("png_example.png").expect("Could not open example file");
     let mut reader = BufReader::new(f);
     let mut bytes : Vec<u8> = vec![];
-    let _ = reader.read(&mut bytes).expect("Could not read file"); 
+    let _ = reader.read_to_end(&mut bytes).expect("Could not read file"); 
     match png_header(&bytes[..]) {
         nom::IResult::Error(_) => println!("Could not parse file"),
-        nom::IResult::Done(_, header_result) => {
-
-        },
-        _ => unimplemented!()
+        nom::IResult::Done(_, header_result) => println!("{:?}", header_result),
+        nom::IResult::Incomplete(needed) => println!("Tried to parse, but needed {:?}", needed),
     }
 }
 
 #[derive(Debug)]
 struct PngHeader {
-    width: i32, // the field in PNGs has the same max as i32 because not every language supports u32
-    height: i32,
+    width: u32, // the field in PNGs has the same max as i32 because not every language supports u32
+    height: u32,
     bit_depth: u8,
     color_type: ColorType,
     filter_method: u8,
@@ -53,12 +50,20 @@ fn parse_color_type(byte: u8) -> Result<ColorType, ()> {
 
 named!(take_an_int(&[u8]) -> i32, do_parse!(a: i32!( nom::Endianness::Little) >> ( a )));
 
+static PNG_FILE_SIGNATURE : [u8; 8] = [
+    137, 80, 78, 71, 13, 10, 26, 10
+];
+
+named!(png_signature<&[u8], &[u8]>, tag!(&PNG_FILE_SIGNATURE[..]));
 
 
 named!(png_header( &[u8] ) -> Result<PngHeader, ()>,
     do_parse!(
-        width: i32!(nom::Endianness::Little) >>
-        height: i32!(nom::Endianness::Little) >>
+        signature: png_signature >>
+        _chunk_length: take!(4) >>
+        _chunk_type: take!(4) >>
+        width: u32!(nom::Endianness::Big) >>
+        height: u32!(nom::Endianness::Big) >>
         bit_depth: take!(1) >>
         color_type_byte: take!(1) >>
         filter_method: take!(1) >>

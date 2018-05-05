@@ -7,6 +7,6 @@ mod png_demo;
 fn main() {
     println!("Demoing print bits");
     print_bits::demo();
-
+    png_demo::demo();
 }
 
