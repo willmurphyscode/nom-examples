@@ -2,6 +2,7 @@ use nom::IResult;
 
 
 pub fn demo() {
+    println!("Demoing a parser that pulls apart bits");
     let bytes = vec![
         0x00u8,
         0xFFu8,
