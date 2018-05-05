@@ -13,8 +13,8 @@ pub fn demo() {
 fn print_parse_results(input: &str) {
     print!("The parse result for '{}' is ", input);
     match parse_cargo(input.as_bytes()) {
-        nom::IResult::Done(i, o) => println!("'Done' where I is {:?} and O is {:?}", i, o),
-        nom::IResult::Error(err) => println!("Error: {}", err),
+        nom::IResult::Done(input, output) => println!("'Done', rest is {:?} and output is {:?}", input, output),
+        nom::IResult::Error(err) => println!("Error: {:?}", err),
         nom::IResult::Incomplete(needed) => println!("Incompled, needed {:?}", needed),
     }
 }
