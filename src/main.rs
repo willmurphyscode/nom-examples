@@ -8,7 +8,7 @@ mod png_demo;
 
 fn main() {
     parse_cargo::demo();
-//    print_bits::demo();
-//    png_demo::demo();
+    print_bits::demo();
+    png_demo::demo();
 }
 
