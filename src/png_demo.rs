@@ -84,7 +84,7 @@ named!(png_header( &[u8] ) -> PngHeader,
         bit_depth: take!(1) >>
         color_type: color_type >>
         filter_method: take!(1) >>
-        interlace_method: take!(1)>>
+        interlace_method: take!(1) >>
         (
             PngHeader {
                 width: width,
