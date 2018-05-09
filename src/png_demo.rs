@@ -93,7 +93,7 @@ named!(png_signature<&[u8], &[u8]>, tag!(&PNG_FILE_SIGNATURE[..]));
 // for<'r> fn(&'r [u8]) -> nom::IResult<&'r [u8], png_demo::PngHeader>
 named!(png_header( &[u8] ) -> PngHeader,
     do_parse!(
-        _signature: png_signature >>
+        _signature: tag!(&PNG_FILE_SIGNATURE[..]) >>
         _chunk_length: take!(4) >>
         _chunk_type: take!(4) >>
         width: u32!(nom::Endianness::Big) >>
@@ -137,14 +137,14 @@ named!(rgb_triple ( &[u8]) -> RgbTriple,
     )
 );
 
-named!(palette_vector (&[u8]) -> Vec<RgbTriple>, many1!(rgb_triple));
+named!(palette_vector (&[u8]) -> Vec<RgbTriple>, many!(rgb_triple));
 
 named!(palette_tag, tag!(&b"PLTE"[..]));
 
 named!(palette_chunk<&[u8], Vec<RgbTriple>>,
     do_parse!(
         length: u32!(nom::Endianness::Big) >>
-        _tag: palette_tag >>
+        _tag: tag!(&b"PLTE"[..]) >>
         data:  many_m_n!(length as usize, length as usize, rgb_triple) >>
         (
             data
