@@ -10,10 +10,9 @@ pub fn demo() {
     let mut reader = BufReader::new(f);
     let mut bytes : Vec<u8> = vec![];
     let _ = reader.read_to_end(&mut bytes).expect("Could not read file"); 
-    // let a : () = png_header;
-    match png_header(&bytes[..]) {
+    match png_file(&bytes[..]) {
         nom::IResult::Error(_) => println!("Could not parse file"),
-        nom::IResult::Done(_, header_result) => println!("{:?}", header_result),
+        nom::IResult::Done(rest, png_file_result) => println!("{:?} and {} bytes", png_file_result, rest.len()),
         nom::IResult::Incomplete(needed) => println!("Tried to parse, but needed {:?}", needed),
     }
 }
@@ -29,6 +28,12 @@ struct PngHeader {
 }
 
 #[derive(Debug)]
+struct PngFile {
+    header: PngHeader,
+    palette: Option<Vec<RgbTriple>>,
+}
+
+#[derive(Debug)]
 enum ColorType {
     Grayscale,
     RGBTriple,
@@ -36,6 +41,8 @@ enum ColorType {
     GrayscaleWithAlpha,
     RGBTripleWithAlpha,
 }
+
+
 
 // TODO: Can I do this with pure nom? 
 fn parse_color_type(byte: u8) -> Result<ColorType, ()> {
@@ -49,11 +56,21 @@ fn parse_color_type(byte: u8) -> Result<ColorType, ()> {
     }
 }
 
-named!(color_type_grayscale<&[u8], ColorType>, do_parse!(a: tag!(&[0][..]) >> (ColorType::Grayscale)));
-named!(color_type_rgb_triple<&[u8], ColorType>, do_parse!(a: tag!(&[2][..]) >> (ColorType::RGBTriple)));
-named!(color_type_palette_index<&[u8], ColorType>, do_parse!(a: tag!(&[3][..]) >> (ColorType::PaletteIndex)));
-named!(color_type_grayscale_with_alpha<&[u8], ColorType>, do_parse!(a: tag!(&[4][..]) >> (ColorType::GrayscaleWithAlpha)));
-named!(color_type_rgb_triple_with_alpha<&[u8], ColorType>, do_parse!(a: tag!(&[6][..]) >> (ColorType::RGBTripleWithAlpha)));
+named!(color_type_grayscale<&[u8], ColorType>,
+    do_parse!(a: tag!(&[0][..]) >> (ColorType::Grayscale))
+);
+named!(color_type_rgb_triple<&[u8], ColorType>,
+    do_parse!(a: tag!(&[2][..]) >> (ColorType::RGBTriple))
+);
+named!(color_type_palette_index<&[u8], ColorType>,
+    do_parse!(a: tag!(&[3][..]) >> (ColorType::PaletteIndex))
+);
+named!(color_type_grayscale_with_alpha<&[u8], ColorType>,
+    do_parse!(a: tag!(&[4][..]) >> (ColorType::GrayscaleWithAlpha))
+);
+named!(color_type_rgb_triple_with_alpha<&[u8], ColorType>,
+    do_parse!(a: tag!(&[6][..]) >> (ColorType::RGBTripleWithAlpha))
+);
 
 named!(color_type<&[u8], ColorType>, 
     alt!(color_type_grayscale 
@@ -93,6 +110,57 @@ named!(png_header( &[u8] ) -> PngHeader,
                 color_type: color_type,
                 filter_method: filter_method[0],
                 interlace_method: filter_method[0],
+            }
+        )
+    )
+);
+
+#[derive(Debug)]
+struct RgbTriple {
+    red: u8,
+    green: u8,
+    blue: u8,
+}
+
+named!(rgb_triple ( &[u8]) -> RgbTriple,
+    do_parse!(
+        red: take!(1) >>
+        green: take!(1) >>
+        blue: take!(1) >>
+        (
+            RgbTriple {
+                red: red[0],
+                green: green[0],
+                blue: blue[0],
+            }
+        )
+    )
+);
+
+named!(palette_vector (&[u8]) -> Vec<RgbTriple>, many1!(rgb_triple));
+
+named!(palette_tag, tag!(&b"PLTE"[..]));
+
+named!(palette_chunk<&[u8], Vec<RgbTriple>>,
+    do_parse!(
+        length: u32!(nom::Endianness::Big) >>
+        _tag: palette_tag >>
+        data:  many_m_n!(length as usize, length as usize, rgb_triple) >>
+        (
+            data
+        )
+    )
+);
+
+named!(png_file (&[u8]) -> PngFile,
+    do_parse!(
+        header: png_header >>
+        _header_crc: take!(4) >>
+        palette: opt!(palette_chunk) >>
+        (
+            PngFile {
+                header: header,
+                palette: palette,
             }
         )
     )
